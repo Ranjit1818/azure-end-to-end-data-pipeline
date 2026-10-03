@@ -1,0 +1,52 @@
+{
+    "name": "gitHubBronze",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "ls_source",
+            "type": "LinkedServiceReference"
+        },
+        "parameters": {
+            "fileName": {
+                "type": "string"
+            },
+            "folderName": {
+                "type": "string"
+            }
+        },
+        "annotations": [],
+        "type": "DelimitedText",
+        "typeProperties": {
+            "location": {
+                "type": "AzureBlobFSLocation",
+                "fileName": {
+                    "value": "@dataset().fileName",
+                    "type": "Expression"
+                },
+                "folderPath": {
+                    "value": "@dataset().folderName",
+                    "type": "Expression"
+                },
+                "fileSystem": "bronze"
+            },
+            "columnDelimiter": ",",
+            "escapeChar": "\\",
+            "firstRowAsHeader": true,
+            "quoteChar": "\""
+        },
+        "schema": [
+            {
+                "name": "airline_id",
+                "type": "String"
+            },
+            {
+                "name": "airline_name",
+                "type": "String"
+            },
+            {
+                "name": "country",
+                "type": "String"
+            }
+        ]
+    },
+    "type": "Microsoft.DataFactory/factories/datasets"
+}

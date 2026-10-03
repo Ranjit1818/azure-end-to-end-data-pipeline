@@ -1,0 +1,6 @@
+selected resource name:		ExtractionPipeline
+selected resource type:		pipeline
+factory name:			adfendtoendproject10
+factory location:		centralindia
+subscription id:		dfed0321-6398-4e83-bc9b-ad9f23bc5311
+time of download (UTC):		Sat, 03 Oct 2026 08:05:33 GMT

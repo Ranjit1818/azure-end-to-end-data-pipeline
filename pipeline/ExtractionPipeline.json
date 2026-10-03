@@ -1,0 +1,265 @@
+{
+    "name": "ExtractionPipeline",
+    "properties": {
+        "activities": [
+            {
+                "name": "ForAllTheItems",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "gitHubData",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@json(variables('gitHubData'))",
+                        "type": "Expression"
+                    },
+                    "activities": [
+                        {
+                            "name": "sourceToBronze",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "DelimitedTextSource",
+                                    "storeSettings": {
+                                        "type": "HttpReadSettings",
+                                        "requestMethod": "GET"
+                                    },
+                                    "formatSettings": {
+                                        "type": "DelimitedTextReadSettings"
+                                    }
+                                },
+                                "sink": {
+                                    "type": "DelimitedTextSink",
+                                    "storeSettings": {
+                                        "type": "AzureBlobFSWriteSettings",
+                                        "copyBehavior": "MergeFiles"
+                                    },
+                                    "formatSettings": {
+                                        "type": "DelimitedTextWriteSettings",
+                                        "quoteAllText": true,
+                                        "fileExtension": ".txt"
+                                    }
+                                },
+                                "enableStaging": false,
+                                "translator": {
+                                    "type": "TabularTranslator",
+                                    "typeConversion": true,
+                                    "typeConversionSettings": {
+                                        "allowDataTruncation": true,
+                                        "treatBooleanAsNumber": false
+                                    }
+                                }
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "sourceGitHubDS",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "p_relativePath": "@replace(     item().download_url,     'https://raw.githubusercontent.com',     '' )"
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "gitHubBronze",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "fileName": {
+                                            "value": "@item().name",
+                                            "type": "Expression"
+                                        },
+                                        "folderName": "@replace(item().name, '.csv', '')"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "gitMetaData",
+                "type": "WebActivity",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "method": "GET",
+                    "url": "https://api.github.com/repos/Ranjit1818/netflixDataset/contents"
+                }
+            },
+            {
+                "name": "gitHubData",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "gitMetaData",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "variableName": "gitHubData",
+                    "value": {
+                        "value": "@activity('gitMetaData').output.response",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "datalakeToBronze",
+                "type": "Copy",
+                "dependsOn": [
+                    {
+                        "activity": "ForAllTheItems",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "DelimitedTextSource",
+                        "storeSettings": {
+                            "type": "AzureBlobFSReadSettings",
+                            "recursive": true,
+                            "wildcardFileName": "*",
+                            "enablePartitionDiscovery": false
+                        },
+                        "formatSettings": {
+                            "type": "DelimitedTextReadSettings"
+                        }
+                    },
+                    "sink": {
+                        "type": "DelimitedTextSink",
+                        "storeSettings": {
+                            "type": "AzureBlobFSWriteSettings"
+                        },
+                        "formatSettings": {
+                            "type": "DelimitedTextWriteSettings",
+                            "quoteAllText": true,
+                            "fileExtension": ".txt"
+                        }
+                    },
+                    "enableStaging": false,
+                    "translator": {
+                        "type": "TabularTranslator",
+                        "typeConversion": true,
+                        "typeConversionSettings": {
+                            "allowDataTruncation": true,
+                            "treatBooleanAsNumber": false
+                        }
+                    }
+                },
+                "inputs": [
+                    {
+                        "referenceName": "adlsDs",
+                        "type": "DatasetReference"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "bronzeDatalake",
+                        "type": "DatasetReference"
+                    }
+                ]
+            },
+            {
+                "name": "bronzeToSilver",
+                "type": "DatabricksNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "datalakeToBronze",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "notebookPath": "/Users/ranjeetkulkarni18@gmail.com/silver_data_processing"
+                },
+                "linkedServiceName": {
+                    "referenceName": "AzureDatabricks3",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "silverToGold",
+                "type": "DatabricksNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "bronzeToSilver",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "notebookPath": "/Users/ranjeetkulkarni18@gmail.com/silver_to_gold_layer"
+                },
+                "linkedServiceName": {
+                    "referenceName": "AzureDatabricks3",
+                    "type": "LinkedServiceReference"
+                }
+            }
+        ],
+        "variables": {
+            "gitHubData": {
+                "type": "String"
+            }
+        },
+        "annotations": [],
+        "lastPublishTime": "2026-09-02T17:28:19Z"
+    },
+    "type": "Microsoft.DataFactory/factories/pipelines"
+}
